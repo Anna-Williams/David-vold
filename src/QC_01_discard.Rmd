@@ -22,11 +22,14 @@ library(here) # for reproducible paths
 library(SingleCellExperiment)
 library(scater) # For qcs
 library(org.Mm.eg.db) # To annotate the genenames
+library(ggplot2) # for the bin2 density
+library(pals) # viridis colour
 ```
 
 ```{r load-sce}
-sce <- readRDS(here( "processed", project, "sce_preliminary.RDS"))
 project <- "fire-mice"
+sce <- readRDS(here( "processed", project, "sce_preliminary.RDS"))
+
 ```
 
 The object has `r dim(sce)[1]` genes and `r dim(sce)[2]` cells before filtering
@@ -119,7 +122,6 @@ hist(
 )
 ```
 
-The bimodality present in the number of counts was already visible in the violin plots.
 
 ```{r}
 hist(
@@ -128,7 +130,7 @@ hist(
 )
 ```
 
-There is a very heavy tail of cells with high mitochondrial genes.
+
 
 ### Scatter plots
 
@@ -138,51 +140,12 @@ plotColData(sce, x = "sum", y = "detected", colour_by = "discard")
 plotColData(sce, x = "sum", y = "detected", colour_by = "Sample")
 ```
 
-### PCA
+Colour fill by density: 
 
-Here we run a PCA using the information in the metadata instead of the gene
-detected. It is useful to visualize the QC parametres.
-
-```{r PCA}
-if (!file.exists(here( "processed", project, "sce_preliminary.RDS"))) {
-  sce <- runColDataPCA(sce, variables = c("sum", "detected", "subsets_mt_percent"))
-}
-plotReducedDim(sce, dimred = "PCA_coldata", colour_by = "Sample")
-plotReducedDim(sce, dimred = "PCA_coldata", colour_by = "chip")
+```{r}
+plotColData(sce, x = "sum", y="subsets_mt_percent") + geom_bin_2d(bins=c(100,100)) + scale_fill_gradientn(colours = viridis(200))
+plotColData(sce, x = "sum", y="detected") + geom_bin_2d(bins=c(100,100)) + scale_fill_gradientn(colours = viridis(200))
 ```
-
-### Ratio between sum and gene counts
-
-This measures the number of detected genes per cell divided by its library
-size. This will be very useful to delete the cells that have low gene counts but
-a relatively high umi count (visible in the scatter plots).
-
-```{r ratio}
-if (!file.exists(here( "processed", project, "sce_preliminary.RDS"))) {
-  sce$ratio_detected_sum <- sce$detected / sce$sum
-  sce$discard_ratio <- isdiscard(sce$ratio_detected_sum, type = "both")
-}
-
-summary(sce$ratio_detected_sum)
-plotColData(sce, x = "sum", y = "detected", colour_by = "ratio_detected_sum")
-# Plot an histogram with the ratio between umi and gene counts
-hist(
-  sce$ratio_detected_sum,
-  breaks = 100
-)
-```
-
-The isdiscard function can but used to find the discards of any distribution, as
-far as it is roughly normal. Bellow we use it with the ratio between the number
-of genes expressed and the number of umi. Again, only the first 3 chips are considered to calculate the cut-offs
-
-```{r ratio-plots}
-# Use the is discard function from scater to see the cutoffs suggestions
-plotColData(sce, x = "sum", y = "detected", colour_by = "discard_ratio")
-attr(sce$discard_ratio, "thresholds")
-```
-
- This filters out `r sum((sce$discard_ratio))` cells.
 
 
 

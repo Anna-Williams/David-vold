@@ -18,6 +18,8 @@ library(here) # for reproducible paths
 library(SingleCellExperiment)
 library(scater) # For qcs
 library(org.Mm.eg.db) # To annotate the genenames
+library(ggplot2) # for the bin2 density
+library(pals) # viridis colour
 ```
 
 ```{r load-sce}
@@ -187,6 +189,13 @@ There is a very heavy tail of cells with high mitochondrial genes.
 plotColData(sce, x = "sum", y = "subsets_mt_percent", colour_by = "outlier")
 plotColData(sce, x = "sum", y = "detected", colour_by = "outlier")
 plotColData(sce, x = "sum", y = "detected", colour_by = "Sample")
+```
+
+Density plots:
+
+```{r}
+plotColData(sce, x = "sum", y="subsets_mt_percent") + geom_bin_2d(bins=c(100,100)) + scale_fill_gradientn(colours = viridis(200))
+plotColData(sce, x = "sum", y="detected") + geom_bin_2d(bins=c(100,100)) + scale_fill_gradientn(colours = viridis(200))
 ```
 
 ### PCA

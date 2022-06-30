@@ -2,7 +2,9 @@
 title: "Gene and Cell QC"
 author: "NadineBestard"
 date: "27/02/2021"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 editor_options: 
   markdown: 
     wrap: 80
@@ -250,9 +252,11 @@ attr(sce$outlier_ratio, "thresholds")
 The thresholds set automatically are too relaxed. We will set stricter thresholds, but still
 being permissive as this is the first round. 
 
-umi: 2000 min
-detected; 900 min
-mit: 15 max
+We will also use the previous knowledge acquired working with similar datasets ( with younguer animals)
+
+umi: 2000 min # this is the lowest value after the 2 QC rounds in the young dataset
+detected; 900 min # the lowest value was 1000 genes detectect in the young datset
+mit: 15 max 
 
 The upper thresholds will be kept the same. we will also take in consideration the detected genes/umi counts ratio,
 that filter out cells with relatively high umi counts but very few detected
@@ -288,6 +292,7 @@ summary_discard <- data.frame(
   total = c(sum(sce$discard), NA)
 )
 row.names(summary_discard) <- c("Cells filtered", "Threshold")
+summary_discard
 
 write.csv(summary_discard, here("outs", project, "discard_summary.csv"))
 ```
@@ -300,7 +305,7 @@ discard_detected <- sce$detected < 900
 discard_umi <- sce$total < 2000
 
 # add label 'discard' to all cells to discard
-sce$discard <- sce$outlier | sce$outlier_ratio | discard_mt | discard_umi
+sce$discard <- sce$outlier | sce$outlier_ratio | discard_mt | discard_umi | discard_detected
 # save the object with all cells but with outlier/discard parametres saved
 if (!file.exists(here( "processed", project, "sce_preliminary.RDS"))) {
 saveRDS(sce, here( "processed", project, "sce_preliminary.RDS"))

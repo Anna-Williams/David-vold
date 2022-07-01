@@ -234,7 +234,7 @@ hist(
 )
 ```
 
-The isoutlier function can but used to find the outliers of any distribution, as
+The isoutlier function can be used to find the outliers of any distribution, as
 far as it is roughly normal. Bellow we use it with the ratio between the number
 of genes expressed and the number of umi. Again, only the first 3 chips are considered to calculate the cut-offs
 
@@ -244,74 +244,28 @@ plotColData(sce, x = "sum", y = "detected", colour_by = "outlier_ratio")
 attr(sce$outlier_ratio, "thresholds")
 ```
 
- This filters out `r sum((sce$outlier_ratio))` cells.
+ This filters out `r sum((sce$outlier_ratio))` cells. From them `r sum(sce$outlier == FALSE & sce$outlier_ratio == TRUE)` cells were not already outlier for other reasons.
 
 
 #### Thresholds for cell filtering 
 
-The thresholds set automatically are too relaxed. We will set stricter thresholds, but still
-being permissive as this is the first round. 
+The thresholds set with isOutlier are quite relaxed, we will keep them like this
+for this first round of QC and first exploratory analysis, and then be stricter
+in a subsequent round. 
 
-We will also use the previous knowledge acquired working with similar datasets ( with younguer animals)
-
-umi: 2000 min # this is the lowest value after the 2 QC rounds in the young dataset
-detected; 900 min # the lowest value was 1000 genes detectect in the young datset
-mit: 15 max 
-
-The upper thresholds will be kept the same. we will also take in consideration the detected genes/umi counts ratio,
-that filter out cells with relatively high umi counts but very few detected
-genes ( lots of copies from the same genes).
-
-```{r summary-discard}
-
-# the manual thresholds I used
-discard_mt <- sce$subsets_mt_percent > 15
-discard_detected <- sce$detected < 900
-discard_umi <- sce$total < 2000
-
-
-# for some I kept the automated outlier detection
-discard_umi_high <- isOutlier(sce$total, type = "higher")
-discard_detected_high <-
-  isOutlier(sce$detected, type = "higher")
-
-# add label 'discard' to all cells to discard
-sce$discard <- sce$outlier | sce$outlier_ratio | discard_mt | discard_umi | discard_detected
-
-# Visualize the thresholds and the cells deleted by each parametre
-summary_discard <- data.frame(
-  umi_high = c(sum(discard_umi_high),
-               attr(discard_umi_high, "thresholds")[2]),
-  detected_high = c(sum(discard_detected_high),
-                    attr(discard_detected_high, "thresholds")[2]),
-  umi_low = c(sum(discard_umi),
-              2000),
-  detected_low = c(sum(discard_detected),
-                   900),
-  mt_pct = c(sum(discard_mt), 15),
-  total = c(sum(sce$discard), NA)
-)
-row.names(summary_discard) <- c("Cells filtered", "Threshold")
-summary_discard
-
-write.csv(summary_discard, here("outs", project, "discard_summary.csv"))
-```
  
-```{r save_discard}
-
-# the manual thresholds I used
-discard_mt <- sce$subsets_mt_percent > 15
-discard_detected <- sce$detected < 900
-discard_umi <- sce$total < 2000
-
-# add label 'discard' to all cells to discard
-sce$discard <- sce$outlier | sce$outlier_ratio | discard_mt | discard_umi | discard_detected
-# save the object with all cells but with outlier/discard parametres saved
+```{r save_preliminary}
+# save the object with all cells and genes but with outlier parametres saved
 if (!file.exists(here( "processed", project, "sce_preliminary.RDS"))) {
 saveRDS(sce, here( "processed", project, "sce_preliminary.RDS"))
 }
 
 ```
+```{r fitler-cells}
+# filter cells
+sce <- sce[, sce$outlier == FALSE | sce$outlier_ratio == FALSE]
+```
+
 
 # Gene QC
 
@@ -322,6 +276,7 @@ must be filtered after cell filtering since some genes may only be detected in
 poor quality cells.
 
 ```{r gene-qc}
+# filter genes
 genes_beforeqc <- dim(sce)[1]
 keep_feature <- rowSums(counts(sce) > 0) > 1
 sce <- sce[keep_feature, ]
@@ -343,16 +298,15 @@ with alignment.
 plotHighestExprs(sce, exprs_values = "counts")
 ```
 
-# Create new filetered object
+# Save new filetered object
 
 ```{r save}
 if (!file.exists(here( "processed", project, "sce_QC_01.RDS"))) {
-  sce <- sce[, sce$discard == FALSE]
   saveRDS(sce, here( "processed", project, "sce_QC_01.RDS"))
 }
 ```
 
-The object has `r dim(sce)[1]` genes and `r sum(sce$discard == FALSE)` cells
+The object has `r dim(sce)[1]` genes and `r dim(sce)[2]` cells
 after filtering
 
 ## Session Info

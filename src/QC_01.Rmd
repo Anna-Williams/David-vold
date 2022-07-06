@@ -263,7 +263,7 @@ saveRDS(sce, here( "processed", project, "sce_preliminary.RDS"))
 ```
 ```{r fitler-cells}
 # filter cells
-sce <- sce[, sce$outlier == FALSE | sce$outlier_ratio == FALSE]
+sce <- sce[, sce$outlier == FALSE & sce$outlier_ratio == FALSE]
 ```
 
 

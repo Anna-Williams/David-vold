@@ -1,9 +1,16 @@
 ---
 title: "Clustering"
 author: "NadineBestard"
-date: "06/05/2021"
-output: html_document
+date: "06/07/2022"
+output:
+  html_document:
+    code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+    
 ---
+
 ### Set-up
 
 
@@ -26,6 +33,7 @@ library(pals) # for palettes with large n #kelly()22, #polychrome()#36, unname(a
 
 ```{r}
 project<- "fire-mice"
+source(here("src/colours.R"))
 ```
 
 ```{r load-sce}
@@ -86,7 +94,7 @@ if(class(obj)[1] == "Seurat"){
         point_alpha = 0.3,
         text_by = cluster_name,
         text_size = 3
-      )  + scale_color_hue() + ggtitle(paste("Clustering with resolution/k =", k))
+      )  + scale_colour_manual(values = plot_cols) + ggtitle(paste("Clustering with resolution/k =", k))
     print(plotDim)
   }
 }else{
@@ -102,75 +110,6 @@ if(class(obj)[1] == "Seurat"){
 Clustering is an unsupervised learning procedure that is used in scRNA-seq data analysis to empirically define groups of cells with similar expression profiles. It is worth stressing the distinction between clusters and cell types. The former is an empirical construct while the latter is a biological truth (albeit a vaguely defined one). For this reason, questions like “what is the true number of clusters?” are usually meaningless. We can define as many clusters as we like, with whatever algorithm we like - each clustering will represent its own partitioning of the high-dimensional expression space, and is as “real” as any other clustering.
 It is helpful to realize that clustering, like a microscope, is simply a tool to explore the data. We can zoom in and out by changing the resolution of the clustering parameters, and we can experiment with different clustering algorithms to obtain alternative perspectives of the data.
 
-## With Bioconductor
-
-```{r cluster}
-# choose the resolutions to compute
-ks <- c(5, 10, 20, 30, 40, 50, 60)
-names <- paste0("cluster_k", as.character(ks))
-
-#only run if first time
-if (!file.exists(here("processed", project, "clusters_SNN_k5-k60_01.RDS"))) {
-  # Compute all the cluster resolutions
-  #  and save in a list with an appropriate name for later use
-  clusters_list <-
-    mapply(function(cluster_name, k) {
-      clusterRows(reducedDim(sce), NNGraphParam(k = k))
-    },
-    names,
-    ks,
-    USE.NAMES = TRUE,
-    SIMPLIFY = FALSE)
-  saveRDS(clusters_list,
-          here("processed", project, "clusters_SNN_k5-k60_01.RDS"))
-} else{
-  clusters_list <-
-    readRDS(here("processed", project, "clusters_SNN_k5-k60_01.RDS"))
-}
-
-# only save the new sce if the object is not already here
-if(!file.exists((here("processed", project, "sce_clusters_01.RDS")))){
-  
-  # Use the list to store the info in the sce and plot result
-  idx <- c(1:length(names))
-  for (i in idx) {
-    k <- ks[i]
-    cluster_name <- names[i]
-    colData(sce) <- cbind(colData(sce), clusters_list[cluster_name])
-    # and plot the result
-    plotDim <-
-      plotReducedDim(
-        sce,
-        "TSNE",
-        colour_by = cluster_name,
-        point_size = 0.5,
-        point_alpha = 0.3,
-        text_by = cluster_name,
-        text_size = 3
-      )  + scale_color_hue() + ggtitle(paste("Clustering with k =", k))
-    print(plotDim)
-  }
-  # removed from here, just save after all clustering methods
-#  saveRDS(sce, here("processed", project, "sce_clusters_01.RDS"))
-  
-} else{
-  # plot directly from the sce_clusters_01.RDS
-  plot_list_func(sce, 
-                 col_pattern = "cluster_k", 
-                 plot_cols = c( unname(polychrome()), unname(watlington())),
-                 label_size = 0.5,
-                 reduction="TSNE",
-                 
-  )
-  
-}
-```
-
-### Cluster tree
-We use this visualisation to see the relationships between the clusters. The aim is to capture the redistribution of cells from one clustering to another at progressively higher resolutions, providing a convenient depiction of how clusters merge or split apart. 
-```{r fig.height=14, fig.width=14}
-clustree(sce, prefix = "cluster_k", edge_arrow = FALSE)
-```
 
 ## With Seurat
 
@@ -190,7 +129,7 @@ saveRDS(srt_clusters_metadata, here("processed", project, "srt_clusters.RDS"))
 
 plot_list_func(srt, 
                col_pattern="originalexp_snn_res", 
-               plot_cols = c( unname(polychrome()), unname(watlington())),
+               plot_cols = cols,
                reduction = "TSNE", 
                label_size = 4 
                )
@@ -207,8 +146,9 @@ DimPlot(srt, reduction = "TSNE", group.by = "originalexp_snn_res.1", label = TRU
 ```{r fig.height=14, fig.width=14}
 clustree(srt_clusters_metadata, prefix = "originalexp_snn_res.", edge_arrow = FALSE)
 ```
-### save all clusterings in the same object
-```{r}
+
+### save clusterings 
+```{r save}
 if (!file.exists( here("processed", project, "sce_clusters_01.RDS"))) {
 # check the cell names are the same
 identical(row.names(colData(sce)), row.names(srt_clusters_metadata))
@@ -225,7 +165,7 @@ saveRDS(sce, here("processed", project, "sce_clusters_01.RDS"))
 #plot seurat clustering
 plot_list_func(sce, 
                col_pattern="originalexp_snn_res", 
-               plot_cols = c( unname(polychrome()), unname(watlington())),
+               plot_cols = cols,
                reduction = "TSNE", 
                label_size = 0.5 
                )

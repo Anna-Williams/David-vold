@@ -1,0 +1,146 @@
+---
+title: "Annotation"
+author: "Nadine Bestard"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Set-up
+```{r library, message=FALSE, warning=FALSE}
+library(here) #reproducible paths
+library(scran) #aggregate
+library(scater) # plot sc
+library(readxl) # read the anotation file
+```
+```{r}
+project<- "fire-mice"
+source(here("src/colours.R"))
+```
+
+
+## Loading
+```{r load}
+sce <- readRDS(here("processed", project, "sce_clusters_01.RDS"))
+```
+
+## Top genes
+
+For each cluster the top experssed genes are calculated and saved in `r paste("outs/", project, "/top_genes_res0.7.tsv")`
+```{r top}
+
+if(!file.exists(here("outs", project, "top_genes_res0.7.tsv"))){
+# Create object where instead of cells in cols we have the clusters with counts aggregated
+summed_res0.7 <- aggregateAcrossCells(sce, id=colData(sce)[,c("originalexp_snn_res.0.7")])
+
+# # Delete ribosomal and mitochondrial genes
+# is_ribo <- grepl("^Rp[sl]", rownames(summed_res0.4))
+# is_mito <- grepl("^mt-", rownames(summed_res0.4))
+# keep <- !(is_ribo | is_mito)
+#  summed_res0.4 <- summed_res0.4[keep,]
+ 
+# for each column (aggregated counts) of the object extract the top genes
+top_genes_res0.7 <- apply(counts(summed_res0.7), 
+      MARGIN = 2,
+      function(x){
+        # get the gene names from the top 50 expressed genes
+        names(sort(x, decreasing = T)[1:100])
+        }
+      )
+# save result
+write.table(top_genes_res0.7, file = here("outs", project, "top_genes_res0.7.tsv"), sep = "\t", quote = FALSE, col.names = TRUE, row.names = FALSE)
+}
+
+```
+
+## re-swap samples
+
+We noticed with the preliminary shiny app that one of the samples had been wrongly labelled. 
+We have found from where the error came from, two mice were swaped in one the first preliminary stages during the 10x lab protocol.
+We correct this mistake here swapping back mouse1 and mouse2. 
+
+This affects the following metadata:
+
+- original_sample_name
+- Sample
+- mouse
+- genotype
+
+
+```{r swap}
+# store the position of the values I want to replace, they are always in the same position, as each row is a cell. 
+KOvo1_1 <- sce$original_sample_name == "KOvo1.1"
+KOvo1_2 <- sce$original_sample_name == "KOvo1.2"
+WTvo1_1 <- sce$original_sample_name == "WTvo1.1"
+WTvo1_2 <- sce$original_sample_name == "WTvo1.2"
+
+# replace the wrong values by the new values
+# original sample name
+sce$original_sample_name <- replace(sce$original_sample_name, KOvo1_1, "WTvo1.1")
+sce$original_sample_name <- replace(sce$original_sample_name, KOvo1_2, "WTvo1.2")
+sce$original_sample_name <- replace(sce$original_sample_name, WTvo1_1, "KOvo1.1")
+sce$original_sample_name <- replace(sce$original_sample_name, WTvo1_2, "KOvo1.2")
+# sample
+sce$Sample <- replace(sce$Sample, KOvo1_1, "WTvo1_1")
+sce$Sample <- replace(sce$Sample, KOvo1_2, "WTvo1_2")
+sce$Sample <- replace(sce$Sample, WTvo1_1, "KOvo1_1")
+sce$Sample <- replace(sce$Sample, WTvo1_2, "KOvo1_2")
+# mouse
+sce$mouse <- replace(sce$mouse, KOvo1_1, "very_old_mouse_1")
+sce$mouse <- replace(sce$mouse, KOvo1_2, "very_old_mouse_1")
+sce$mouse <- replace(sce$mouse, WTvo1_1, "very_old_mouse_2")
+sce$mouse <- replace(sce$mouse, WTvo1_2, "very_old_mouse_2")
+# genotype
+sce$genotype <- replace(sce$genotype, KOvo1_1, "WT")
+sce$genotype <- replace(sce$genotype, KOvo1_2, "WT")
+sce$genotype <- replace(sce$genotype, WTvo1_1, "KO")
+sce$genotype <- replace(sce$genotype, WTvo1_2, "KO")
+```
+
+<!-- ``` -->
+<!-- #before swap -->
+<!-- head(which(sce$original_sample_name %in% c("KOvo1.1"))) -->
+<!-- [1] 1 2 3 4 5 6 -->
+<!-- head(which(sce$original_sample_name %in% c("KOvo1.2"))) -->
+<!-- [1] 1606 1607 1608 1609 1610 1611 -->
+<!-- head(which(sce$original_sample_name %in% c("WTvo1.1"))) -->
+<!-- [1] 13565 13566 13567 13568 13569 13570 -->
+<!-- head(which(sce$original_sample_name %in% c("WTvo1.2"))) -->
+<!-- [1] 15873 15874 15875 15876 15877 15878 -->
+<!-- ``` -->
+
+# Annotate
+
+With the shiny App, canonical markers were used to annotate the dataset, together with the top 100 genes 
+a provisional annotation is given to each cluster.
+
+```{r annotation}
+annotation <- read_xlsx(here("data/Very old FIRE mice cluster names resolution 0.7.xlsx"))
+
+sce$celltype <- sce$originalexp_snn_res.0.7
+sce$clusters_named <- sce$originalexp_snn_res.0.7
+
+levels(sce$celltype) <- annotation$CellType
+levels(sce$clusters_named) <- annotation$ClusterName
+
+sce$genotype <- relevel(factor(sce$genotype), "WT")
+
+plotTSNE(sce, colour_by = "clusters_named", text_by = "clusters_named", text_size = 3, force = 1) + scale_color_manual(values = cols)
+
+```
+
+```{r save}
+if (!file.exists(here("processed", project, "sce_anno_01.RDS"))) {
+  saveRDS(sce, here("processed", project, "sce_anno_01.RDS"))
+}
+```
+

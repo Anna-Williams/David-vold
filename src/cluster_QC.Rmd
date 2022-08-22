@@ -213,6 +213,13 @@ ggplot(data = prop_per_smp, aes(x = cluster, y = Proportion, fill = Sample)) +
 ```
 
 Paired colour values are from the same mice. 
+Erythrocytes should had been filtered when gating, two of the samples seem to 
+have been more bloody than the others and more Erythrocytes have come through. 
+From these same samples come the cluster Astro5, that was already flagged as it has low number of umi counts and will be deleted as it is probably just an artefact. 
+
+```{r mice}
+low_n_mice <- c("Astro5", "Erythrocytes")
+```
 
 
 ### Clusters of doublet cells
@@ -248,7 +255,7 @@ res_dbl
 All clusters have a significant p-value to reject the null hypothesis that they do consist of doublets. 
 
 The clusters with less DE genes with the potential sources are clusters with already
-identified as dead cells or the erythrocytes ( that have expression of few genes)
+identified as dead cells and the erythrocytes ( that have expression of few genes, making it a good candidate to have little genes differentially expressed with other cells)
 
 ```{r}
 doublet<-c("DeadAstro3", "DeadAstro2" )
@@ -329,7 +336,7 @@ difference_KO_WT <-
   filter(!(cluster %in% c("Microglia1", "Microglia2"))) %>% 
     filter(Genotype == "KO") %>% 
     # select the "interesting" clusters
-  filter(Proportion > ko_pct | Proportion < (100-ko_pct) ) %>% 
+  filter(Proportion > ko_pct) %>% 
   .$cluster
 ```
 
@@ -341,11 +348,13 @@ gt_ko_pct
 ```
 
 There are `r length(gt_ko_pct)` clusters flagged as poor quality and also more
-abundant (greater than `r ko_pct` %) in the KO or WT, these are `r gt_ko_pct`
+abundant (greater than `r ko_pct` %) in the KO animals, these are `r gt_ko_pct`.
+
+The two clusters that seem much more abundant in the WT are an artefact coming mostly from only one ore two samples.
 
 ### Cluster QC
 
-the clusters highlighted as:
+the clusters delted from downstream analysis are highlighted bellow, and are composed by clusters with:
 
 -   low umi: majority of cells having less than 3000 umi counts. These are:
 
@@ -360,13 +369,17 @@ the clusters highlighted as:
     
 `r doublet`
 
+-   artefacts coming from few samples:
+
+`r low_n_mice`
+
 -   Clusters with different abundance between KO and WT were kept, as they could be different due to the biological condition.
 
 `r gt_ko_pct`
 
 
 ```{r filterout}
-sce$filter_out <- sce$clusters_named %in% c( high_mt_clusters, low_umi_clusters, doublet) & !(sce$clusters_named %in% difference_KO_WT)
+sce$filter_out <- sce$clusters_named %in% c( high_mt_clusters, low_umi_clusters, doublet, low_n_mice) & !(sce$clusters_named %in% difference_KO_WT)
 filter_out <- sum(sce$filter_out)
 plotTSNE(sce, colour_by = "filter_out", point_size=0.5,
          point_alpha = 0.3, text_by = "clusters_named", text_size = 3) 
@@ -375,7 +388,7 @@ plotTSNE(sce, colour_by = "filter_out", point_size=0.5,
 ```
 
 
-```{r save, eval=FALSE, include=FALSE}
+```{r save, eval=TRUE, include=FALSE}
 if (!file.exists(here("processed", project, "sce_clusterQC.RDS"))){
  sce <- sce[, sce$filter_out == FALSE]
  saveRDS(sce, here("processed", project, "sce_clusterQC.RDS"))
@@ -384,7 +397,7 @@ if (!file.exists(here("processed", project, "sce_clusterQC.RDS"))){
 
 ```
 
-This would filter `r filter_out` cells, leaving an object with
+This filters `r filter_out` cells, leaving an object with
 `r sum(sce$filter_out == FALSE)`cells.
 
 ## Session Info

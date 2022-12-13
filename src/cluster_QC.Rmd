@@ -388,7 +388,7 @@ plotTSNE(sce, colour_by = "filter_out", point_size=0.5,
 ```
 
 
-```{r save, eval=TRUE, include=FALSE}
+```{r save, eval=TRUE, include=TRUE}
 if (!file.exists(here("processed", project, "sce_clusterQC.RDS"))){
  sce <- sce[, sce$filter_out == FALSE]
  saveRDS(sce, here("processed", project, "sce_clusterQC.RDS"))

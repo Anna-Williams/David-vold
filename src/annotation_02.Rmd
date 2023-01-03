@@ -1,0 +1,104 @@
+---
+title: "Annotation 02"
+author: "Nadine Bestard"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Set-up
+```{r library, message=FALSE, warning=FALSE}
+library(here) #reproducible paths
+library(scran) #aggregate
+library(scater) # plot sc
+library(scran) # for findmarkers
+library(readxl) # read the anotation file
+```
+
+```{r}
+project<- "fire-mice"
+source(here("src/colours.R"))
+```
+## Loading
+```{r load}
+sce <- readRDS(here("processed", project, "sce_clusters_02.RDS"))
+```
+
+## previous annotaion
+```{r}
+plotTSNE(sce, colour_by= "clusters_named", text_by = "clusters_named") + scale_colour_manual(values = cols)
+plotTSNE(sce, other_fields= "clusters_named") + facet_wrap(~ clusters_named) + scale_colour_manual(values = cols)
+
+```
+
+## potential clustering resolutions
+
+Minimum with all the same populations is 0.8
+
+From 0.9 the cluster KO spcecific is divided further. 
+
+We will keep 0.8
+
+```{r}
+plotTSNE(sce, colour_by="originalexp_snn_res.0.7", text_by = "originalexp_snn_res.0.7")  +  scale_color_manual(values = cols)
+plotTSNE(sce, colour_by="originalexp_snn_res.0.8", text_by = "originalexp_snn_res.0.8") +  scale_color_manual(values = cols)
+plotTSNE(sce, colour_by="originalexp_snn_res.0.9", text_by = "originalexp_snn_res.0.9") +  scale_color_manual(values = cols)
+plotTSNE(sce, colour_by="originalexp_snn_res.1", text_by = "originalexp_snn_res.1") +  scale_color_manual(values = cols)
+plotTSNE(sce, colour_by="genotype", text_by = "originalexp_snn_res.1") +  scale_color_manual(values = col_wt_ko)
+```
+
+## identify the immune/microglia clusters
+
+```{r}
+plotExpression(sce, features=c( "Ms4a7", "Flt3", "Plac8"),
+    x="originalexp_snn_res.0.8", colour_by = "originalexp_snn_res.0.8", ncol=1) +  scale_color_manual(values = cols)
+plotExpression(sce, features=c( "S100a8"),
+    x="originalexp_snn_res.0.8", colour_by = "originalexp_snn_res.0.8", ncol=1) +  scale_color_manual(values = cols)
+
+plotExpression(sce, features=c( "Cd74", 
+                                     "Spi1", 
+                                     "Mrc1", 
+                                     "Tmem119", 
+                                     "Cx3cr1", 
+                                     "Aif1",
+                                     "P2ry12",
+                                     "C1qc",
+                                     "C1qa"),
+    x="originalexp_snn_res.0.8", colour_by = "originalexp_snn_res.0.8", ncol=1) +  scale_color_manual(values = cols)
+
+plotExpression(sce, features=c( "Cd3e"),
+    x="originalexp_snn_res.0.8", colour_by = "originalexp_snn_res.0.8", ncol=1) +  scale_color_manual(values = cols)
+```
+
+## identify the vascular clusters
+
+```{r}
+plotExpression(sce, features=c( "Cldn5", "Pdgfrb" ),
+    x="originalexp_snn_res.0.8", colour_by = "originalexp_snn_res.0.8", ncol=1) +  scale_color_manual(values = cols)
+```
+
+## Add annotation
+
+```{r annotation}
+annotation <- read_xlsx(here("data/Very old FIRE mice cluster annotation after 2nd QC Res = 0.8.xlsx"))
+
+sce$celltype <- sce$originalexp_snn_res.0.8
+sce$clusters_named <- sce$originalexp_snn_res.0.8
+
+levels(sce$celltype) <- annotation$cell_type
+levels(sce$clusters_named) <- annotation$cluster_name
+#relevel
+ sce$clusters_named <- factor(sce$clusters_named,
+    levels = c("Microglia1","Microglia2","BAMs&DCs&Mono","Granulocytes","Lymphocytes", "Astro1","Astro2", "Astro3","Astro4", "OPC1","OPC2", "mOligo1",  "mOligo2", "mOligo3",  "Endothelial", "Mural_cells","ChP_epithelia",  
+   "Ependymocytes&NRPs",  "mNeurons" ))
+
+sce$genotype <- relevel(factor(sce$genotype), "WT")
+
+plotTSNE(sce, colour_by = "clusters_named", text_by = "clusters_named", text_size = 3, force = 1) + scale_color_manual(values = cols)
+
+saveRDS(sce, here("processed", project, "sce_anno_02.RDS"))
+```

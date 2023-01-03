@@ -111,10 +111,17 @@ It is helpful to realize that clustering, like a microscope, is simply a tool to
 
 ## With Seurat
 
-```{r seurat}
+```{r seurat, message=FALSE, warning=FALSE}
 #only run if first time
 if (!file.exists( here("processed", project, "srt_clusters_02.RDS"))) {
 srt <- as.Seurat(sce)
+ # delete old clustering
+  srt_cluster_names <-
+    grep("originalexp_snn_res", names(srt@meta.data), value = TRUE)
+  for (cluster in srt_cluster_names) {
+    # delete previous to ensure right 
+    srt[[cluster]] <- NULL
+  }
 srt <- FindNeighbors(srt, reduction = "PCA", dims = 1:25)
 srt <- FindClusters(srt, 
                     resolution = c(0.01, 0.04, 0.05, 
@@ -151,6 +158,13 @@ if (!file.exists( here("processed", project, "sce_clusters_02.RDS"))) {
 # check the cell names are the same
 identical(row.names(colData(sce)), row.names(srt_clusters_metadata))
 
+  # delete old clustering
+  srt_cluster_names <-
+    grep("originalexp_snn_res", names(srt_clusters_metadata), value = TRUE)
+  for (cluster in srt_cluster_names) {
+  colData(sce)[[cluster]] <- NULL
+  }
+  
 # add them
 colData(sce) <- cbind(colData(sce), srt_clusters_metadata)
 

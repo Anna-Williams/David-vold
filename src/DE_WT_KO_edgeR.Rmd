@@ -48,10 +48,10 @@ cells. These are saved in /outs/`r project`/DE_cluster/fail_min_cells_DE.csv
 
 ```{r filter-summed}
 # Removing all pseudo-bulk samples with 'insufficient' cells.
-summed_filt <- summed[, summed$ncells >= 10]
+summed_filt <- summed[, summed$ncells > 15]
 
 # and saving to file which one there are
-fail_n_cells  <- colData(summed)[ colData(summed)$ncells < 10, c("Sample", "mouse", "genotype", "chip", "clusters_named", "ncells")]
+fail_n_cells  <- colData(summed)[ colData(summed)$ncells <= 15, c("Sample", "mouse", "genotype", "chip", "clusters_named", "ncells")]
 
 write.csv(fail_n_cells, here("outs", project,"DE_edgeR", "fail_min_cells_DE.csv"), row.names = FALSE)
 ```
